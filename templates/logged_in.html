@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+</head>
+<body>
+    Welcome, {{ user_alias }}<br/>
+    <a href="{{ url_for('logout') }}">Logout</a><br/>
+    <a href="{{ url_for('get_users') }}">See users</a><br/>
+    Uid <input id="uid" type="text" size="50"><br/>
+    Keyword <input id="keyword" type="text" size="50"><br/>
+    <a id="query" href="#" onclick="get_posts_of_uid();">Click to view post</a>
+</body>
+<script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script type="text/javascript">
+    function get_posts_of_uid() {
+        var uid = $("#uid").val()
+        var keyword = $("#keyword").val()
+        var url = ""
+
+        if (keyword == "") {
+            url = "/posts/" + uid.toString()
+        } else {
+            url = "/posts/" + uid.toString() + "?keyword=" + keyword
+        }
+		window.location.href = url
+    }
+</script>
+
+</html>
