@@ -35,9 +35,6 @@ APP_KEY = '2637837462'
 APP_SECRET = 'a2179056bd5fe581bc80cfe6a88ed20d'
 CALLBACK_URL = 'http://soahomework1.sinaapp.com/callback'
 
-#def _format_user(u):
-#    return dict(id=str(u.id), screen_name=u.screen_name, profile_url=u.profile_url, verified=u.verified, verified_type=u.verified_type, profile_image_url=u.profile_image_url)
-#
 
 def _format_user(u):
     if isinstance(u['name'], unicode):
@@ -55,9 +52,9 @@ def main():
 
 @app.route('/users', methods=['GET'])
 def get_users():
-    cookie = request.cookies.get('uid', None)
-    if not cookie:
-        return render_template('login_button.html')
+    #cookie = request.cookies.get('uid', None)
+    #if not cookie:
+    #    return render_template('login_button.html')
     user = db.select('select * from users')
     #return str(user)
     users = u'['
@@ -70,9 +67,9 @@ def get_users():
 
 @app.route('/posts/<uid>', methods=['GET'])
 def get_posts(uid):
-    cookie = request.cookies.get('uid', None)
-    if not cookie:
-        return render_template('login_button.html')
+    #cookie = request.cookies.get('uid', None)
+    #if not cookie:
+    #    return render_template('login_button.html')
     query = db.select('select * from users where id=?', uid)
     if not query:
         return redirect(url_for('main'))
@@ -81,8 +78,17 @@ def get_posts(uid):
     if post:
         r = post[0]['posts']#.encode('utf-8')
     else:
-        return redirect(url_for('main'))
-    keyword = request.args.get('keyword', '')
+        client = weibo.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=CALLBACK_URL) 
+        client.set_access_token(u.auth_token, u.expired_time)
+        r = client.statuses.user_timeline.get(count=100, uid=uid)
+        rjson = json.loads(r)
+        rdict = {}
+        for k, v, in rjson.iteritems():
+            rdict[k] = v
+        r = json.dumps(rdict, ensure_ascii=False, indent=2).encode('utf-8')
+        
+    keyword = request.args.get('keywords', '')
+
     if keyword == '0' or keyword == '1':
         r = post[0]['posts']
         client = weibo.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=CALLBACK_URL) 
@@ -114,26 +120,6 @@ def get_posts(uid):
         rdict['keywords'] = rtext    
         
         r = json.dumps(rdict, ensure_ascii=False, indent=2).encode('utf-8')
-    #['posts']
-  #  client = weibo.APIClient(app_key=APP_KEY, app_secret=APP_SECRET, redirect_uri=CALLBACK_URL) 
-  #  client.set_access_token(u.auth_token, u.expired_time)
-    
-  #  r = client.statuses.user_timeline.get(count=100, uid=uid)
-    
- #   keyword = request.args.get('keyword', '')
- #   if keyword:
- #   	r = json.loads(r)
- #       rlist = []
- #       rdict = {}
- #       for status in r['statuses']:
- #           if unicode(keyword) in status['text']:
- #               rlist.append(status)
- #       for k, v in r.iteritems():
- #           if k != 'statuses':
- #               rdict[k] = v
- #           else:
- #               rdict[k] = rlist
- #       r = json.dumps(rdict, ensure_ascii=False).encode('utf-8')
 
     rsp = make_response(r)
     rsp.headers['Content-Type'] = 'application/json'
@@ -175,11 +161,8 @@ def callback():
     
     if users:
         db.update_kw('users', 'id=?', uid, **user)
-    	#client.set_access_token(u.auth_token, u.expired_time)
-        
         response = urllib2.urlopen('https://api.weibo.com/2/statuses/user_timeline.json?uid=%s&access_token=%s' % (uid, access_token))
         r = weibo._read_body(response)
-        #r = client.statuses.user_timeline.get(count=100, uid=uid)
         u2 = db.select('select * from posts where uid=?', uid)
         users2 = {"uid": uid, "posts": r}
         if u2:
@@ -189,7 +172,15 @@ def callback():
     else:
         user['id'] = uid
         db.insert('users', **user)
-        #db.insert('posts', **users2)
+        response = urllib2.urlopen('https://api.weibo.com/2/statuses/user_timeline.json?uid=%s&access_token=%s' % (uid, access_token))
+        r = weibo._read_body(response)
+        u2 = db.select('select * from posts where uid=?', uid)
+        users2 = {"uid": uid, "posts": r}
+        if u2:
+            db.update_kw('posts', 'uid=?', uid, **users2)
+        else:
+            db.insert('posts', **users2)
+        
     logging.info('got user: %s' % uid)
     rsp = make_response(redirect(url_for('main')))
     rsp.set_cookie('uid', uid,
